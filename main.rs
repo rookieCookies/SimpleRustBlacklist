@@ -24,24 +24,24 @@ fn main() {
     println!("{}", base_filter.filter_out("Never gonna tell a lie and hurt you"));
 
 
-    print_in_hierarchy(&base_filter.trie, 0);
+    print_in_hierarchy(&base_filter.map, 0);
 }
 
 #[derive(Debug)]
 struct Filter {
-    trie: Node,
+    map: Node,
 }
 
 impl Filter {
     fn new() -> Self { 
-        Self { trie: Node::new() }
+        Self { map: Node::new() }
     }
 
     fn filter_out(&self, message: &str) -> String {
         let mut new_message = String::new();
 
         for original_word in Parser::string_to_words(message, " ") {
-            new_message += if Filter::is_blacklisted(&self.trie, &mut original_word.to_lowercase().chars()) {
+            new_message += if Filter::is_blacklisted(&self.map, &mut original_word.to_lowercase().chars()) {
                 CENSOR_TEXT
             } else {
                 &original_word
@@ -92,7 +92,7 @@ impl Parser {
     }
     fn compile_filter(filter: &mut Filter, list: &str) {
         for word in Parser::string_to_words(list, "\n") {
-            filter.trie.add_word(&word.to_lowercase())
+            filter.map.add_word(&word.to_lowercase())
         }
     }
 }
