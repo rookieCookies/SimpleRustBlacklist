@@ -1,46 +1,41 @@
-use std::{fs::File, io::Read, collections::HashMap, str::Chars};
+use std::{fs::File, io::Read, str::Chars};
+use rustc_hash::FxHashMap;
 
 const CENSOR_TEXT : &str = "****";
 
 fn main() {
-    let mut blacklist_file = match File::open("blacklist.txt") {
-        Ok(file) => file,
-        Err(..) => {
-            File::create("blacklist.txt")
-                .expect("Could not create nor find blacklist.txt")
-        }
-    };
-    let mut blacklisted_word_string = String::new();
-    blacklist_file.read_to_string(&mut blacklisted_word_string).expect("There was an error reading the blacklist");
+    let filter : Filter;
 
-    let mut base_filter = Filter::new();
-    Parser::compile_filter(&mut base_filter, &blacklisted_word_string);
-
-    println!("{}", base_filter.filter_out("Never gonna give you up"));
-    println!("{}", base_filter.filter_out("Never gonna let you down"));
-    println!("{}", base_filter.filter_out("Never gonna run around and desert you"));
-    println!("{}", base_filter.filter_out("Never gonna make you cry"));
-    println!("{}", base_filter.filter_out("Never gonna say goodbye"));
-    println!("{}", base_filter.filter_out("Never gonna tell a lie and hurt you"));
-
-
-    print_in_hierarchy(&base_filter.map, 0);
+    {
+        // Creating the list of words
+        let mut blacklist_file = match File::open("blacklist.txt") {
+            Ok(file) => file,
+            Err(..) => panic!("Could not open blacklist file"),
+        };
+        let mut blacklisted_word_string = String::new();
+        blacklist_file.read_to_string(&mut blacklisted_word_string).expect("There was an error reading the blacklist");
+        filter = Filter::new(&blacklisted_word_string.as_str());
+    }
+    print_filter(&filter);
+    println!("{}", filter.apply("Hello world!"));
 }
 
-#[derive(Debug)]
 struct Filter {
     map: Node,
 }
 
 impl Filter {
-    fn new() -> Self { 
-        Self { map: Node::new() }
+    fn new(list: &str) -> Self { 
+        let mut filter = Self { map: Node::new() };
+        for word in list.split("\n") {
+            filter.map.add_word(&word.to_lowercase())
+        }
+        filter
     }
 
-    fn filter_out(&self, message: &str) -> String {
+    fn apply(&self, message: &str) -> String {
         let mut new_message = String::new();
-
-        for original_word in Parser::string_to_words(message, " ") {
+        for original_word in message.split(" ") {
             new_message += if Filter::is_blacklisted(&self.map, &mut original_word.to_lowercase().chars()) {
                 CENSOR_TEXT
             } else {
@@ -48,7 +43,6 @@ impl Filter {
             };
             new_message += " ";
         }
-
         new_message
     }
 
@@ -64,12 +58,11 @@ impl Filter {
     }
 }
 
-#[derive(Debug)]
-struct Node(HashMap<char, Node>);
+struct Node(FxHashMap<char, Node>);
 
 impl Node {
     fn new() -> Self {
-        Self(HashMap::new())
+        Self(FxHashMap::default())
     }
     fn add_word(&mut self, word: &str) {
         let mut current_node = self;
@@ -79,22 +72,8 @@ impl Node {
     }
 }
 
-
-struct Parser;
-
-impl Parser {
-    fn string_to_words(string: &str, separator: &str) -> Vec<String> {
-        let mut vector  = Vec::new();
-        for word in string.split(separator) {
-            vector.push(word.to_string())
-        }
-        vector
-    }
-    fn compile_filter(filter: &mut Filter, list: &str) {
-        for word in Parser::string_to_words(list, "\n") {
-            filter.map.add_word(&word.to_lowercase())
-        }
-    }
+fn print_filter(filter: &Filter) {
+    print_in_hierarchy(&filter.map, 0);
 }
 
 fn print_in_hierarchy(node: &Node, indent: usize) {
@@ -106,7 +85,7 @@ fn print_in_hierarchy(node: &Node, indent: usize) {
                 print!(">");
             }
         }
-        println!("{:?}", section_char);
+        println!("'{}'", section_char);
         print_in_hierarchy(section_node, indent + 1);
     }
 }
