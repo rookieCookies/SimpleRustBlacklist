@@ -17,7 +17,7 @@ fn main() {
         filter = Filter::new(&blacklisted_word_string.as_str());
     }
     print_filter(&filter);
-    println!("{}", filter.apply("Hello world!"));
+    println!("{}", filter.apply("Hellohell hell how are you"));
 }
 
 struct Filter {
@@ -46,29 +46,41 @@ impl Filter {
         new_message
     }
 
+    #[inline(always)]
     fn is_blacklisted(node: &Node, word_chars: &mut Chars) -> bool {
+        Filter::blacklisted_word(node, word_chars)
+    }
+
+    fn blacklisted_word(node: &Node, word_chars: &mut Chars) -> bool {
         let char = match word_chars.next() {
             Some(c) => c,
-            None => return true
+            None => return node.is_word
         };
-        if node.0.contains_key(&char) {
-            return Filter::is_blacklisted(node.0.get(&char).unwrap(), word_chars);
+        if node.map.contains_key(&char) {
+            return Filter::blacklisted_word(node.map.get(&char).unwrap(), word_chars);
         }
         false
     }
 }
 
-struct Node(FxHashMap<char, Node>);
+struct Node {
+    map: FxHashMap<char, Node>,
+    is_word: bool,
+}
 
 impl Node {
     fn new() -> Self {
-        Self(FxHashMap::default())
+        Self {
+            map: FxHashMap::default(),
+            is_word: false,
+        }
     }
     fn add_word(&mut self, word: &str) {
         let mut current_node = self;
         for char in word.chars() {
-            current_node = current_node.0.entry(char).or_insert_with(Node::new);
+            current_node = current_node.map.entry(char).or_insert_with(Node::new);
         }
+        current_node.is_word = true
     }
 }
 
@@ -77,7 +89,7 @@ fn print_filter(filter: &Filter) {
 }
 
 fn print_in_hierarchy(node: &Node, indent: usize) {
-    for (section_char, section_node) in node.0.iter() {
+    for (section_char, section_node) in node.map.iter() {
         for i in 0..indent {
             if indent-1 != i {
                 print!("-");
